@@ -25,11 +25,7 @@ Background
 
 * MassivIU uses a dictionary to specify what fields to work on.
 
-
-Note about MySQL
-----------------
-
-* Richard Brockie made me aware of some problems with MySQL InnoDb. It seems like MassivIU doesn't insert anything, but changing table type to MyISAM solves the problem allthough doing so will create other problems because InnoDb has a lot of nice features not found in MyISAM (http://stackoverflow.com/questions/20148/myisam-versus-innodb). Like Django itself I'm recommend using PostgreSQL.
+* For the record; I love the Django ORM. I think it's great, just not for scenarios like the ones Massiviu was written for.
 
 
 Installation
@@ -58,10 +54,9 @@ You got a model like::
 
 Using MassivIU::
 
-    from django.db import connection
-    from massiviu import MassContext
+    from massiviu import DelayedContextFrom
 
-    with MassContext(Person, connection) as cntx:
+    with DelayedContextFrom(Person) as cntx:
         for name, age, sex in (('Thomas', 36, 'M'), ('Joe', 40, 'M'), ('Jane', 28, 'F')):
              cntx.insert(dict(name = name, age = age, sex = sex))
 
@@ -71,7 +66,7 @@ using plain SQL - no ORM in sight.
 
 MassivIU using default values defined in your model::
     
-    with MassContext(Person, connection) as cntx:
+    with DelayedContextFrom(Person) as cntx:
         # Adding an item, just defining a name and using the default values from the model:
         cntx.insert({'name': 'John'})
 
@@ -85,7 +80,7 @@ MassivIU using default values defined in your model::
 Say you want to update all records with some calculated value, something you 
 couldn't find a way to do in SQL. Using MassivIU this is easy and fast::
 
-    with MassContext(Person, connection) as cntx:
+    with DelayedContextFrom(Person) as cntx:
         # Use Djangos ORM to generate dictionaries to use in MassivIU; objects.all().values().
         for item in Person.objects.all().values():
             cntx.update(dict(id=item.get('id'), somevar=calculated_value))
@@ -98,13 +93,13 @@ but I`m looking into other ways of handling transactions as well::
 
     def some_method():
         with transaction.commit_on_success():
-            with MassContext(Person, connection) as cntx:
+            with DelayedContextFrom(Person) as cntx:
                 for item in somelist:
                     cntx.insert({'some_column': item.some_value, 'another_column': item.another_value})    
 
 You can also cache items to delete::
 
-    with MassContext(Person, connection) as cntx:
+    with DelayedContextFrom(Person) as cntx:
         for person in person.objects.all():
             if person.likes_perl_more_than_python:
                 cntx.delete(person.id) # won't trigger anything
@@ -118,14 +113,14 @@ requires a value for the primary key/id of the record, but uses the django orm's
 instead of plain sql to reduce number of statements to execute. This is helpful when your fields can
 have a limited set of values, like EXIF-data from photos. An example::
 
-    with MassContext(Photo, connection) as cntx:
-        cntx.update({'id': 1, 'camera_model': 'Nikon', 'fnumber': 2.8, 'iso_speed': 200})
-        cntx.update({'id': 2, 'camera_model': 'Nikon', 'fnumber': 11, 'iso_speed': 400})
-        cntx.update({'id': 3, 'camera_model': 'Nikon', 'fnumber': 2.8, 'iso_speed': 400})
-        cntx.update({'id': 4, 'camera_model': 'Canon', 'fnumber': 3.5, 'iso_speed': 200})
-        cntx.update({'id': 5, 'camera_model': 'Canon', 'fnumber': 11, 'iso_speed': 800})
-        cntx.update({'id': 6, 'camera_model': 'Pentax', 'fnumber': 11, 'iso_speed': 800})
-        cntx.update({'id': 7, 'camera_model': 'Sony', 'fnumber': 3.5, 'iso_speed': 1600})
+    with DelayedContextFrom(Photo) as cntx:
+        cntx.bulk_update({'id': 1, 'camera_model': 'Nikon', 'fnumber': 2.8, 'iso_speed': 200})
+        cntx.bulk_update({'id': 2, 'camera_model': 'Nikon', 'fnumber': 11, 'iso_speed': 400})
+        cntx.bulk_update({'id': 3, 'camera_model': 'Nikon', 'fnumber': 2.8, 'iso_speed': 400})
+        cntx.bulk_update({'id': 4, 'camera_model': 'Canon', 'fnumber': 3.5, 'iso_speed': 200})
+        cntx.bulk_update({'id': 5, 'camera_model': 'Canon', 'fnumber': 11, 'iso_speed': 800})
+        cntx.bulk_update({'id': 6, 'camera_model': 'Pentax', 'fnumber': 11, 'iso_speed': 800})
+        cntx.bulk_update({'id': 7, 'camera_model': 'Sony', 'fnumber': 3.5, 'iso_speed': 1600})
         # and then some thousand more lines like that
 
 Internally MassivIU will construct a structure like this::
@@ -165,17 +160,30 @@ from your music collection etc would process much faster using bulk_update.
 By default MassivIU provides no validation and extracts no such info from your models, 
 but by using the MassivIU value validator you can clean up and validate your data as they're being added::
 
-        def value_validator(values):
+        def name_validator(values):
             if 'name' in values and len(values.get('name')) > 20:
                 values['name'] = values['name'][:20]
             return values
 
-        with MassContext(foo, connection, value_validator) as cntx:
+        with DelayedContextFrom(foo).validate_values_with(name_validator) as cntx:
             cntx.insert({'name': 'Thomas'*50, 'age': 36, 'sex': 'M'})
 
 And that's all you have to do. Your method value_validator-method will be called each time you add a set of values. 
 If you want to abort if any invalid data is found just raise an exception.
 
+Note about MySQL
+----------------
+
+* Richard Brockie made me aware of some problems with MySQL InnoDb. It seems like MassivIU doesn't insert anything, but changing table type to MyISAM solves the problem allthough doing so will create other problems because InnoDb has a lot of nice features not found in MyISAM (http://stackoverflow.com/questions/20148/myisam-versus-innodb). Like Django itself I'm recommend using PostgreSQL.
+
+Why refactoring and a new name?
+-------------------------------
+
+The monkey-patching of the models was stupid. The re-organization of the code into smaller, clearly defined classes made the code 
+it easier to understand and maintain. It was also written with Dependency-Injection in mind so it is easy to replace a specific 
+class if it doesn't fit your needs. This release and the any following updates will be aimed at Python 3.5+. 
+ 
+I did't remember what DSE stood for so I changed it to something more meaningful. I hope.
 
 Release notes 
 -------------

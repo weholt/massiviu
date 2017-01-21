@@ -9,7 +9,7 @@ configure_app.configure('tests')
 from db_context import DbContext
 from item_cache import ItemCache
 from model_context import ModelContext
-from context import MassContext
+from context import DelayedContextFrom
 from exceptions import PrimaryKeyInInsertValues, PrimaryKeyMissingInInsertValues
 
 from django.test.utils import setup_test_environment, teardown_test_environment
@@ -52,7 +52,7 @@ class testMassiviu(unittest.TestCase):
                 values['name'] = values['name'][:20]
             return values
 
-        with MassContext(foo, connection, value_validator) as cntx:
+        with DelayedContextFrom(foo, connection, value_validator) as cntx:
             cntx.insert({'name': 'Thomas'*50, 'age': 36, 'sex': 'M'})
         obj = foo.objects.first()
         self.assertEqual(len(obj.name), 20)
@@ -69,11 +69,11 @@ class testMassiviu(unittest.TestCase):
         self.assertEqual(x.item_counter, 4)
 
     def test_update(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'name': 'John Doe #1'})
         self.assertEqual(foo.objects.all().count(), 1)
         id = foo.objects.first().id
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.update({'name': 'Thomas Weholt', 'id': id})
         self.assertEqual(foo.objects.get(id=id).name, 'Thomas Weholt')
 
@@ -85,42 +85,42 @@ class testMassiviu(unittest.TestCase):
         self.assertTrue(model_cnxt.default_values.get('id', None) == None)
 
     def test_add_item(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'name': 'Thomas', 'age': 36, 'sex': 'M'})
         self.assertTrue(foo.objects.all().count() == 1)
 
     def test_delete_item(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'name': 'Thomas', 'age': 36, 'sex': 'M'})
         self.assertTrue(foo.objects.all().count() == 1)
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.delete(foo.objects.all()[0].id)
         self.assertTrue(foo.objects.all().count() == 0)
 
     def test_add_itemUsingModelDelayedExecutorUsingDefaults(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'name': 'Thomas'})
         foo_record = foo.objects.all()[0]
         self.assertTrue(foo_record.age == 20)
         self.assertTrue(foo_record.sex == "M")
 
     def test_add_itemUsingCallableDefaultValue(self):
-        with MassContext(foobar, connection) as cntx:
+        with DelayedContextFrom(foobar, connection) as cntx:
             cntx.insert({'number': 1})
         time.sleep(0.5)
-        with MassContext(foobar, connection) as cntx:
+        with DelayedContextFrom(foobar, connection) as cntx:
             cntx.insert({'number': 2})
         item1 = foobar.objects.all()[0]
         item2 = foobar.objects.all()[1]
         self.assertTrue(item1.dt != item2.dt)
 
     def insertPersons(self, person_count):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for i in range(0, person_count):
                 cntx.insert({'name': 'Person%s' % i, 'age': i})
 
     def test_reset_for_model(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for i in range(0, 10):
                 cntx.insert({'name': 'Person%s' % i, 'age': i})
             cntx.reset()
@@ -135,7 +135,7 @@ class testMassiviu(unittest.TestCase):
     #         # Write some tests here ...
     #
     def test_escaping_of_quotation_chars(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'name': '"pony"'})
             cntx.insert({'name': "'pony'"})
             cntx.insert({'name': "`pony`"})
@@ -143,16 +143,16 @@ class testMassiviu(unittest.TestCase):
 
     def test_nonexisting_fields(self):
         # TODO : write some validation code and optionally crash on invalid data?
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert({'nosuchfield': 'Foo', 'anotherfield': 1, 'name': 'footest', 'age': 30})
         self.assertTrue(foo.objects.all().count() == 1)
 
     def test_update_only_update_specified_fields(self):
         params = {'name': 'Thomas', 'age': 36, 'sex': 'M'}
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert(params)
         object_id = foo.objects.first().id
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.update({'name': 'Thomas Weholt', 'id': object_id})
 
         updated_foo = foo.objects.all()[0]
@@ -162,10 +162,10 @@ class testMassiviu(unittest.TestCase):
 
     def test_bulk_update(self):
         params = {'name': 'Thomas', 'age': 36, 'sex': 'M'}
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.insert(params)
         object_id = foo.objects.first().id
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.bulk_update({'name': 'Thomas Weholt', 'id': object_id})
 
         updated_foo = foo.objects.first()
@@ -176,34 +176,34 @@ class testMassiviu(unittest.TestCase):
     def test_update_specific_fields(self):
         self.insertPersons(1)
         foo_id = foo.objects.first().id
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             cntx.update({'id': foo_id, 'name': 'Jo'})
         self.assertTrue(foo.objects.get(id=foo_id).name == 'Jo')
 
     def test_with_statement2(self):
         s = "was his name o'"
         self.insertPersons(10)
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for item in foo.objects.all().values():
                 cntx.update({'id': item.get('id'), 'name': "%s %s" % (item['name'], s)})
         self.assertTrue(s in foo.objects.all()[0].name)
 
     def test_implementing_subclass(self):
-        with MassContext(Child, connection) as cntx:
+        with DelayedContextFrom(Child, connection) as cntx:
             for i in range(100):
                 cntx.insert({'name': 'Whatever', 'age': random.randint(1, 20), })
 
     def test_sql_keyword_escaping(self):
         # "key" is a reserved word in SQL; for successful inserts/updates,
         # it must be escaped by Massiviu
-        with MassContext(ModelWithSQLKeywordAsField, connection) as cntx:
+        with DelayedContextFrom(ModelWithSQLKeywordAsField, connection) as cntx:
             cntx.insert(dict(key=1, where='select', update='*;'))
         record = ModelWithSQLKeywordAsField.objects.get()
-        with MassContext(ModelWithSQLKeywordAsField, connection) as cntx:
+        with DelayedContextFrom(ModelWithSQLKeywordAsField, connection) as cntx:
             cntx.update(dict(update=';update where', id=record.pk))
 
     def test_pk_field_is_autofield(self):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             # Django's default PK
             self.assertEqual('id', cntx.model_context.pk)
             # The PK is an AutoField
@@ -212,7 +212,7 @@ class testMassiviu(unittest.TestCase):
             self.assertRaises(PrimaryKeyInInsertValues, cntx.insert, {'id': 1, 'name': u"John Doe"})
 
     def test_pk_field_is_not_autofield(self):
-        with MassContext(WiktionaryPage, connection) as cntx:
+        with DelayedContextFrom(WiktionaryPage, connection) as cntx:
             # The PK is still recognized
             self.assertEqual('id', cntx.model_context.pk)
             # The PK is not the AutoField generated by Django
@@ -223,7 +223,7 @@ class testMassiviu(unittest.TestCase):
         page = WiktionaryPage.objects.get(pk=1234)
         self.assertEqual(u"django", page.title)
         # Oops! didn't capitalize a proper name
-        with MassContext(WiktionaryPage, connection) as cntx:
+        with DelayedContextFrom(WiktionaryPage, connection) as cntx:
             # Forgot to give the PK
             self.assertRaises(PrimaryKeyMissingInInsertValues, cntx.update, {'title': u"Django"})
             cntx.update({'id': 1234, 'title': u"Django"})
@@ -241,7 +241,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
         teardown_test_environment()
 
     def insertPersons(self, person_count):
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for i in range(0, person_count):
                 cntx.insert({'name': 'Person%s' % i, 'age': i})
 
@@ -261,7 +261,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
     def test_SpeedReport_lotsOfGetAndUpdateUsingMassiviu(self):
         self.insertPersons(10000)
         start_Massiviu = time.time()
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for item in foo.objects.all().values():
                 item['name'] = "%s Doe" % item['name']
                 cntx.update(item)
@@ -280,7 +280,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
     def test_SpeedReportForUpdatesUsingMassiviu(self):
         self.insertPersons(5000)
         start_Massiviu = time.time()
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for item in foo.objects.all().values():
                 item['age'] += 10
                 cntx.update(item)
@@ -300,7 +300,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
     def test_deletion_queue(self):
         self.insertPersons(100)
         start = time.time()
-        with MassContext(foo, connection) as cntx:
+        with DelayedContextFrom(foo) as cntx:
             for item in foo.objects.all().values():
                 cntx.delete(item.get('id'))
         self.assertTrue(foo.objects.all().count() == 0)
@@ -313,7 +313,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
 
     def test_bulk_updates(self):
         camera_models = ('Nikon', 'Canon', 'Fujifilm', 'Panasonic', 'Sony', 'Leica', 'Pentax')
-        with MassContext(Photo, connection) as cntx:
+        with DelayedContextFrom(Photo, connection) as cntx:
             for i in range(0, 1000):
                 cntx.insert({'filename': 'photo%s.jpg' % i, 'camera_model': 'Not set'})
 
@@ -334,7 +334,7 @@ class PerformanceTestMassiviu(unittest.TestCase):
         print("Took %s seconds to update 999 photos using orm." % (time.time() - start))
         Photo.objects.all().update(camera_model='Not set', rating=0)
         start = time.time()
-        with MassContext(Photo, connection) as cntx:
+        with DelayedContextFrom(Photo, connection) as cntx:
             for i in pks:
                 cntx.bulk_update({
                     Photo._meta.pk.name: i,

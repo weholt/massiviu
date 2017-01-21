@@ -1,3 +1,4 @@
+from django.db import connection as default_connection
 from item_cache import ItemCache
 from operations import Operations
 from db_context import DbContext
@@ -19,16 +20,16 @@ class NullLogger:
         pass
 
 
-class MassContext(object):
+class DelayedContextFrom(object):
     """
 
     """
-    def __init__(self, model, connection, value_validator_cls=None, logger=None, db_context_cls=DbContext, model_context_cls=ModelContext,
+    def __init__(self, model, connection=default_connection, value_validator_cls=None, logger=NullLogger(), db_context_cls=DbContext, model_context_cls=ModelContext,
                  operations_cls=Operations, item_cache_cls=ItemCache):
         """
 
         """
-        self.logger = logger or NullLogger()
+        self.logger = logger
         self.db_context = db_context_cls(connection)
         self.model_context = model_context_cls(model, self.db_context)
         self.operations = operations_cls(self.logger, self.db_context, self.model_context)
@@ -45,8 +46,17 @@ class MassContext(object):
 
     def __enter__(self):
         """
-        When using with MassContext(...) as cntx:
+        When using with DelayedContextFrom(...) as cntx:
         """
+        return self
+
+    def validate_values_with(self, value_validator_cls):
+        """
+
+        :param value_validator_cls:
+        :return:
+        """
+        self.value_validator_cls = value_validator_cls
         return self
 
     def reset(self):
