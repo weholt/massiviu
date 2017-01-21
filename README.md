@@ -54,7 +54,7 @@ You got a model like::
 
 Using MassivIU::
 
-    from massiviu import DelayedContextFrom
+    from massiviu.context import DelayedContextFrom
 
     with DelayedContextFrom(Person) as cntx:
         for name, age, sex in (('Thomas', 36, 'M'), ('Joe', 40, 'M'), ('Jane', 28, 'F')):
