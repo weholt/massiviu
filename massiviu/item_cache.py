@@ -2,7 +2,7 @@ import sys
 import types
 
 # Python 3.x or 2.x
-from exceptions import PrimaryKeyInInsertValues, PrimaryKeyMissingInInsertValues
+from .exceptions import PrimaryKeyInInsertValues, PrimaryKeyMissingInInsertValues
 
 PY3 = sys.version_info[0] == 3 or False
 ITEM_LIMIT = 999  # How many items to cache before forcing an executemany.

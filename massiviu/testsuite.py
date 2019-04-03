@@ -3,19 +3,19 @@ import random
 import unittest
 import time
 
-import configure_app
+from . import configure_app
 configure_app.configure('tests')
 
-from db_context import DbContext
-from item_cache import ItemCache
-from model_context import ModelContext
-from context import DelayedContextFrom
-from exceptions import PrimaryKeyInInsertValues, PrimaryKeyMissingInInsertValues
+from .db_context import DbContext
+from .item_cache import ItemCache
+from .model_context import ModelContext
+from .context import DelayedContextFrom
+from .exceptions import PrimaryKeyInInsertValues, PrimaryKeyMissingInInsertValues
 
 from django.test.utils import setup_test_environment, teardown_test_environment
 from django.db import connection
 
-from tests.models import foo, foobar, Child, ModelWithSQLKeywordAsField, WiktionaryPage, Photo, ModelWithValidation
+from .tests.models import foo, foobar, Child, ModelWithSQLKeywordAsField, WiktionaryPage, Photo, ModelWithValidation
 
 
 class TestOperations(object):
@@ -26,10 +26,14 @@ class TestOperations(object):
 class test_model_context(unittest.TestCase):
 
     def setUp(self):
+        
         setup_test_environment()
-
+        
     def tearDown(self):
-        teardown_test_environment()
+        try:
+            teardown_test_environment()
+        except:
+            pass
 
     def test_model_context1(self):
         db_context = DbContext(connection)
@@ -39,10 +43,17 @@ class test_model_context(unittest.TestCase):
 class testMassiviu(unittest.TestCase):
 
     def setUp(self):
-        setup_test_environment()
+        try:
+            setup_test_environment()
+        except:
+            pass
 
     def tearDown(self):
-        teardown_test_environment()
+        try:
+            teardown_test_environment()
+        except:
+            pass
+
         foo.objects.all().delete()
         foobar.objects.all().delete()
 
@@ -234,11 +245,17 @@ class testMassiviu(unittest.TestCase):
 class PerformanceTestMassiviu(unittest.TestCase):
 
     def setUp(self):
-        setup_test_environment()
+        try:
+            setup_test_environment()
+        except:
+            pass
 
     def tearDown(self):
         foo.objects.all().delete()
-        teardown_test_environment()
+        try:
+            teardown_test_environment()
+        except:
+            pass
 
     def insertPersons(self, person_count):
         with DelayedContextFrom(foo) as cntx:

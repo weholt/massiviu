@@ -1,5 +1,5 @@
 
-from exceptions import InsertManyException, PrimaryKeyMissingInInsertValues, \
+from .exceptions import InsertManyException, PrimaryKeyMissingInInsertValues, \
     PrimaryKeyInInsertValues, UpdateManyException, UpdateOneException
 
 

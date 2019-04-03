@@ -4,7 +4,7 @@ from django.db.models import AutoField
 PK_ID = 'id'  # default name of primary key field
 
 
-class dse_value_parser(classmethod):
+class value_parser(classmethod):
     """
 
     """
@@ -14,15 +14,15 @@ class dse_value_parser(classmethod):
 
         """
         func = args[0]
-        func.is_dse_value_parser = True
-        super(dse_value_parser, self).__init__(*args, **kw)
+        func.is_value_parser = True
+        super(value_parser, self).__init__(*args, **kw)
 
 
 def get_value_parsers_from_class(klass):
     """
 
     """
-    return [getattr(klass, name) for name, parser in klass.__dict__.items() if isinstance(parser, dse_value_parser)]
+    return [getattr(klass, name) for name, parser in klass.__dict__.items() if isinstance(parser, value_parser)]
 
 
 def get_default_value_for_field_from_model(model, field):
