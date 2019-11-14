@@ -1,4 +1,4 @@
-from dse import dse_value_parser
+from massiviu.model_context import dse_value_parser
 from django.db import models
 from datetime import datetime
 import random
